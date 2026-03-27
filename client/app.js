@@ -1,31 +1,34 @@
 const express = require("express");
 const { MongoClient } = require("mongodb");
 
-const app = express();
+const app = express();        // ← This must come first
 const PORT = process.env.PORT || 3000;
 
-const mongoUser = process.env.MONGO_USERNAME || process.env.MONGO_INITDB_ROOT_USERNAME;
-const mongoPass = process.env.MONGO_PASSWORD || process.env.MONGO_INITDB_ROOT_PASSWORD;
-const mongoHost = process.env.MONGO_HOST || "mongodb";
+// Connection settings for local development
+const mongoUser = process.env.MONGO_USERNAME || "admin";
+const mongoPass = process.env.MONGO_PASSWORD;
+const mongoHost = "localhost";
 const dbName = "testdb";
 
 const uri = `mongodb://${mongoUser}:${encodeURIComponent(mongoPass)}@${mongoHost}:27017/?authSource=admin`;
 
 let db;
 
+console.log("🔍 Trying to connect with user:", mongoUser);
+
 async function connectDB() {
   try {
-    const client = new MongoClient(uri, {
-      serverSelectionTimeoutMS: 10000,
-      retryWrites: true,
+    const client = new MongoClient(uri, { 
+      serverSelectionTimeoutMS: 15000 
     });
-    
     await client.connect();
     db = client.db(dbName);
-    console.log("✅ Connected to MongoDB successfully");
+    console.log("✅ Connected to MongoDB successfully!");
   } catch (err) {
     console.error("❌ DB connection failed:", err.message);
-    // Do not exit in development, but show clear error
+    if (err.message.includes("Authentication failed")) {
+      console.error("   → Username or Password is incorrect. Check your .env file");
+    }
   }
 }
 
@@ -42,7 +45,7 @@ app.get("/", (req, res) => {
 app.get("/data", async (req, res) => {
   try {
     if (!db) {
-      return res.status(500).json({ error: "Database not connected yet" });
+      return res.status(500).json({ error: "Database not connected yet. Please wait..." });
     }
     const collection = db.collection("items");
     await collection.insertOne({ name: "Saima App", time: new Date() });
